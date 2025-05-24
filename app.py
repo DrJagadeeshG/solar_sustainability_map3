@@ -144,7 +144,7 @@ PARAMETER_MAPPING = {
 OBJECTIVE_TOOLTIPS = {
     "Adaptation": "Focuses on helping farmers adapt to climate change impacts through solar solutions for irrigation and crop management.",
     "Mitigation": "Aims to reduce greenhouse gas emissions by replacing fossil fuel-based energy systems with solar alternatives.",
-    "Replacement": "Involves replacing existing conventional energy sources with solar power systems for agricultural operations.",
+    "Replacment": "Involves replacing existing conventional energy sources with solar power systems for agricultural operations.",
     "General_SI": "General Solar Initiative - comprehensive assessment covering multiple solar suitability factors for diverse applications."
 }
 
@@ -199,12 +199,16 @@ def get_parameter_values(gdf, selected_state, selected_district):
     
     return parameter_values
 
-# Find and load shapefile
-shapefile_path = "Solar_Suitability_layer.shp"
-for file in os.listdir('.'):
-    if file.endswith('.shp'):
-        shapefile_path = file
-        break
+# Find and load shapefile - use original version
+shapefile_path = None
+if os.path.exists("Solar_Suitability_layer.shp"):
+    shapefile_path = "Solar_Suitability_layer.shp"
+else:
+    # Fallback to any .shp file
+    for file in os.listdir('.'):
+        if file.endswith('.shp'):
+            shapefile_path = file
+            break
 
 gdf = load_shapefile(shapefile_path)
 
@@ -240,9 +244,8 @@ if gdf is not None:
     with col3:
         st.markdown("**🎯 Objective**")
         
-        # Create objective selector with tooltip
+        # Get current selection for tooltip
         objective_options = list(categories.keys())
-        objective_labels = [categories[obj] for obj in objective_options]
         
         selected_category = st.selectbox(
             "Objective",
@@ -251,14 +254,18 @@ if gdf is not None:
             label_visibility="collapsed"
         )
         
-        # Add tooltip for selected objective
+        # Display tooltip right next to Objective label using JavaScript to position after render
         if selected_category in OBJECTIVE_TOOLTIPS:
             tooltip_text = OBJECTIVE_TOOLTIPS[selected_category]
             st.markdown(f"""
-            <div class="tooltip" style="margin-top: 5px;">
-                <span style="color: #F39C12; font-size: 14px;">ℹ️ Info</span>
-                <span class="tooltiptext">{tooltip_text}</span>
-            </div>
+            <script>
+                setTimeout(function() {{
+                    var objectiveLabel = document.querySelector('div[data-testid="column"]:nth-child(3) label');
+                    if (objectiveLabel && !objectiveLabel.querySelector('.tooltip')) {{
+                        objectiveLabel.innerHTML += ' <span style="margin-left: 8px;"><div class="tooltip" style="display: inline-block;"><span style="color: #F39C12; font-size: 16px;">ℹ️</span><span class="tooltiptext">{tooltip_text}</span></div></span>';
+                    }}
+                }}, 100);
+            </script>
             """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
@@ -379,7 +386,7 @@ if gdf is not None:
                     color = category_colors[level]
                 else:
                     if "Highly Suitable" in level:
-                        color = "#66BB6A"
+                        color = "#FFC107"  # Use yellowish color
                     elif "Moderately Suitable" in level:
                         color = "#FFEB3B" 
                     elif "Less Suitable" in level:
@@ -401,44 +408,47 @@ if gdf is not None:
             
             # Compact pie chart
             if len(levels) <= 6:
-                fig, ax = plt.subplots(figsize=(3.5, 3.5))
-                
-                pie_colors = []
-                for level in levels:
-                    if level in category_colors:
-                        pie_colors.append(category_colors[level])
-                    else:
-                        if "Highly Suitable" in level:
-                            pie_colors.append('#66BB6A')
-                        elif "Moderately Suitable" in level:
-                            pie_colors.append('#FFEB3B')
-                        elif "Less Suitable" in level:
-                            pie_colors.append('#F44336')
+                try:
+                    fig, ax = plt.subplots(figsize=(3.5, 3.5))
+                    
+                    pie_colors = []
+                    for level in levels:
+                        if level in category_colors:
+                            pie_colors.append(category_colors[level])
                         else:
-                            pie_colors.append('#BBBBBB')
-                
-                wedges, texts, autotexts = ax.pie(
-                    percentages, 
-                    colors=pie_colors,
-                    autopct='%1.1f%%',
-                    startangle=90,
-                    textprops={'fontsize': 8}
-                )
-                
-                fig.patch.set_facecolor('#2C3E50')
-                ax.set_facecolor('#2C3E50')
-                
-                for autotext in autotexts:
-                    autotext.set_color('white')
-                    autotext.set_fontweight('bold')
-                    autotext.set_fontsize(8)
-                
-                for text in texts:
-                    text.set_fontsize(0)  # Hide labels to save space
-                
-                plt.tight_layout()
-                st.pyplot(fig)
-                plt.close()
+                            if "Highly Suitable" in level:
+                                pie_colors.append('#FFC107')  # Use yellowish color
+                            elif "Moderately Suitable" in level:
+                                pie_colors.append('#FFEB3B')
+                            elif "Less Suitable" in level:
+                                pie_colors.append('#F44336')
+                            else:
+                                pie_colors.append('#BBBBBB')
+                    
+                    wedges, texts, autotexts = ax.pie(
+                        percentages, 
+                        colors=pie_colors,
+                        autopct='%1.1f%%',
+                        startangle=90,
+                        textprops={'fontsize': 8}
+                    )
+                    
+                    fig.patch.set_facecolor('#2C3E50')
+                    ax.set_facecolor('#2C3E50')
+                    
+                    for autotext in autotexts:
+                        autotext.set_color('white')
+                        autotext.set_fontweight('bold')
+                        autotext.set_fontsize(8)
+                    
+                    for text in texts:
+                        text.set_fontsize(0)  # Hide labels to save space
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
+                    plt.close()
+                except Exception as chart_error:
+                    st.write("Chart could not be rendered")
         else:
             st.markdown('<div class="compact-metric"><span class="metric-name">No statistics available</span></div>', unsafe_allow_html=True)
     
